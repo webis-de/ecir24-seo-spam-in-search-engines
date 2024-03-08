@@ -1,0 +1,37 @@
+### Binaries
+*.zip
+*.tar
+*.xz
+*.gz
+
+
+### Config files
+local_config.py
+
+### Python
+*.log
+*.pot
+*.pyc
+__pycache__/
+venv*/
+*.egg-info
+build/
+dist/
+
+### IDEs and temporary files
+.idea
+.swp
+*~
+*.tmp
+
+### OS-specific
+.directory
+desktop.ini
+Thumbs.db
+.DS_Store
+
+### local output
+*/output
+
+### Node
+node_modules/

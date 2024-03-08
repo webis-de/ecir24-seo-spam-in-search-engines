@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@cliqz/adblocker-playwright": "^1.23.9"
+  }
+}

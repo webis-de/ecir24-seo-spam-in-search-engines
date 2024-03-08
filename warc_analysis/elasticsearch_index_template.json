@@ -1,0 +1,63 @@
+{
+  "index_patterns" : ["affiliate_*_stats_*"],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "2",
+        "number_of_replicas": "2",
+        "refresh_interval": "120s",
+        "routing.allocation.total_shards_per_node": "1"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "src_file": {
+          "type": "keyword",
+          "ignore_above": 10000
+        },
+        "search_engine": {
+          "type": "keyword"
+        },
+        "query": {
+          "type": "keyword",
+          "ignore_above": 10000,
+          "fields": {
+            "text": {
+              "type": "text"
+            }
+          }
+        },
+        "record_id": {
+          "type": "keyword"
+        },
+        "scheme": {
+          "type": "keyword"
+        },
+        "host": {
+          "type": "keyword"
+        },
+        "public_suffix": {
+          "type": "keyword"
+        },
+        "warc_date": {
+          "type": "date"
+        },
+        "crawl_date": {
+          "type": "date"
+        },
+        "date": {
+          "type": "date"
+        },
+        "last_modified": {
+          "type": "date"
+        },
+        "url": {
+          "type": "keyword"
+        },
+        "word_freq_vec": {
+          "type": "binary"
+        }
+      }
+    }
+  }
+}

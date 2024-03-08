@@ -1,0 +1,1 @@
+##.exit-intent, .exit-intent__background

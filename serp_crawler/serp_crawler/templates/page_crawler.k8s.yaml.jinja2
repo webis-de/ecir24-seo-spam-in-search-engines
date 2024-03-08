@@ -1,0 +1,134 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ job_name }}
+spec:
+  completions: 7392
+  parallelism: 100
+  completionMode: Indexed
+  backoffLimit: 400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: scriptor
+          image: ghcr.io/webis-de/scriptor:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: 3Gi
+              cpu: "4"
+            limits:
+              memory: 20Gi
+              cpu: "4"
+          command:
+            - bash
+            - -c
+            - |
+              trap "exit 0" SIGINT SIGTERM
+
+              PARTNAME="part-$(($JOB_COMPLETION_INDEX / 500))"
+              QUERYNAME="query-${JOB_COMPLETION_INDEX}"
+              TARNAME="/output/${PARTNAME}/${QUERYNAME}.tar"
+              if [ -e "$TARNAME" ]; then
+                  echo Output TAR already exists. >&2
+                  exit 0
+              fi
+
+              echo Starting job ID ${JOB_COMPLETION_INDEX}...
+              INPUT_DIR="/input/${PARTNAME}"
+              INPUT_FILE="${INPUT_DIR}/${QUERYNAME}-hits.jsonl"
+              INPUT_QUERY_FILE="${INPUT_DIR}/${QUERYNAME}.txt"
+              if [ ! -f "$INPUT_FILE" ]; then
+                  echo No input for job. >&2
+                  exit 0
+              fi
+
+              WORKDIR_BASE="/workdir/${PARTNAME}"
+              mkdir -p "$WORKDIR_BASE"
+              
+              # Prepare writeable config dir
+              CONFIG_INDIR="${WORKDIR_BASE}/input"
+              mkdir "$CONFIG_INDIR"
+              cp -rT "/input/browserContexts" "${CONFIG_INDIR}/browserContexts"
+
+              # Prepare alternative writable config dir with disabled JS
+              CONFIG_INDIR_NOJS="${WORKDIR_BASE}/input-nojs"
+              mkdir "$CONFIG_INDIR_NOJS"
+              cp -rT "/input/browserContexts" "${CONFIG_INDIR_NOJS}/browserContexts"
+              sed -i 's/\}$/, "javaScriptEnabled": false}/' "${CONFIG_INDIR_NOJS}/browserContexts/default/browser.json"
+
+              OUTDIR_BASE="${WORKDIR_BASE}/output/${QUERYNAME}"
+              mkdir -p "$OUTDIR_BASE"
+
+              LOGDIR="${WORKDIR_BASE}/logs"
+              mkdir -p "$LOGDIR"
+
+              NEXT_HIT_ID=0
+              while read -r cfg_line; do
+                  hid=$NEXT_HIT_ID
+                  NEXT_HIT_ID=$(($NEXT_HIT_ID + 1))
+
+                  outdir="${OUTDIR_BASE}/hit-${hid}"
+                  mkdir -p "$outdir"
+                  logfile="${LOGDIR}/${QUERYNAME}-${hid}.log"
+
+                  # Write config files
+                  echo "$cfg_line" > "${CONFIG_INDIR}/config.json"
+                  echo "$cfg_line" > "${CONFIG_INDIR_NOJS}/config.json"
+
+                  echo Snapping hit ${hid}... >&2
+                  timeout -k 120s 360s /scriptor/bin/entrypoint.js --show-browser --overwrite-output --no-har --no-tracing \
+                      --input "$CONFIG_INDIR" --output-directory "$outdir" |& tee "$logfile"
+                  status=$?
+
+                  # If no screenshot was created / Script was killed, try again without JavaScript (Playwright is buggy)
+                  if [ $status -eq 124 ] || [ $status -eq 137 ] || [ ! -e "${outdir}/snapshot/screenshot.png" ]; then
+                      echo ERROR: No screenshot created, trying again without JavaScript... >&2 |& tee -a "$logfile"
+                      rm -rf "$outdir"
+                      mkdir "$outdir"
+                      export DISPLAY=:$((${DISPLAY/:/} + 1))
+                      timeout -k 120s 240s /scriptor/bin/entrypoint.js --show-browser --overwrite-output --no-har --no-tracing \
+                          --input "$CONFIG_INDIR_NOJS" --output-directory "$outdir" |& tee -a "$logfile"
+                  fi
+                  mv "$logfile" "${outdir}/logs/node.log"
+
+                  # Avoid X server conflicts if Xvfb doesn't shut down properly
+                  export DISPLAY=:$((${DISPLAY/:/} + 1))
+              done < "$INPUT_FILE"
+
+              echo Packing output files... >&2
+              cp "$INPUT_QUERY_FILE" "${OUTDIR_BASE}/query.txt"
+              mkdir -p "$(dirname $TARNAME)"
+              tar -C "${WORKDIR_BASE}/output" -cvf "${TARNAME}.incomplete" "$QUERYNAME"
+              mv "${TARNAME}.incomplete" "${TARNAME}"
+
+              echo Finished. >&2
+              exit 0
+
+          volumeMounts:
+            - name: config
+              mountPath: /script
+              readOnly: true
+            - name: input
+              mountPath: /input
+              readOnly: true
+            - name: output
+              mountPath: /output
+            - name: work
+              mountPath: /workdir
+      volumes:
+        - name: config
+          hostPath:
+            path: {{ config_path }}
+            type: Directory
+        - name: input
+          hostPath:
+            path: {{ input_path }}
+            type: Directory
+        - name: output
+          hostPath:
+            path: {{ output_path }}
+            type: DirectoryOrCreate
+        - name: work
+          emptyDir: {}
