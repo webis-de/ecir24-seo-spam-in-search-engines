@@ -1,6 +1,6 @@
 # Is Google Getting Worse? A Longitudinal Investigation of SEO Spam in Search Engines
 
-Code and data for the ECIR'24 paper "Bevendorff et al., Is Google Getting Worse? A Longitudinal Investigation of SEO Spam in Search Engines".
+Code and data for the ECIR'24 paper "Bevendorff et al., Is Google Getting Worse? A Longitudinal Investigation of SEO Spam in Search Engines". [[paper](https://webis.de/publications.html#bevendorff_2024a)]
 
 ## Usage
 
