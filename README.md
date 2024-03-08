@@ -7,7 +7,8 @@ Code and data for the ECIR'24 paper "Bevendorff et al., Is Google Getting Worse?
 The code has the following prerequisites:
 
 - Python 3.10+
-- An Apache Beam cluster (for crawling and WARC analysis)
+- An Apache Beam cluster (for shallow website crawling and WARC analysis)
+- A Kubernetes cluster (for rich website crawling)
 - An Elasticsearch cluster (for WARC analysis)
 
 ```bash
@@ -34,7 +35,7 @@ The product SERP dataset can be downloaded from [Zenodo](https://doi.org/10.5281
 
 The list of product queries can be found in [serp_crawler/resources/product-queries.txt](serp_crawler/resources/product-queries.txt).
 
-The full website crawls are too large to publish on Zenodo and can be made available on requests (please contact us).
+The full website crawls are too large to publish on Zenodo and can be made available on request (please contact us).
 
 ## How to cite
 
